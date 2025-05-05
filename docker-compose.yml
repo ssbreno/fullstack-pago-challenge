@@ -1,0 +1,94 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_REGION=us-east-1
+      - S3_ENDPOINT=http://localstack:4566
+      - S3_BUCKET=my-local-bucket
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    depends_on:
+      - localstack
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - pago-challenge-network
+    restart: unless-stopped
+
+  localstack:
+    image: localstack/localstack:2.3.2
+    ports:
+      - "4566:4566"            
+      - "4510-4559:4510-4559"
+    environment:
+      - SERVICES=s3
+      - DEBUG=1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - DATA_DIR=/tmp/localstack/data
+      - HOSTNAME_EXTERNAL=localstack
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - EDGE_PORT=4566
+      - PERSISTENCE=1
+      - SKIP_SSL_CERT_DOWNLOAD=1
+    volumes:
+      - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - pago-challenge-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:3001
+      - VITE_S3_ENDPOINT=http://localhost:4566
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - pago-challenge-network
+    command: npm run dev
+
+  storybook:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "6006:6006"
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - pago-challenge-network
+    command: ./node_modules/.bin/storybook dev -p 6006 --ci --host 0.0.0.0
+
+volumes:
+  mongodb_data:
+  localstack-data:
+
+networks:
+  pago-challenge-network:
+    driver: bridge

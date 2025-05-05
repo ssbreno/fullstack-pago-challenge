@@ -1,0 +1,70 @@
+{
+    "name": "fullstack-pago-challenge",
+    "version": "1.0.0",
+    "description": "Full Stack Pago Challenge",
+    "type": "module",
+    "private": true,
+    "workspaces": [
+        "backend",
+        "frontend",
+        "scripts"
+    ],
+    "scripts": {
+        "prepare:backend": "cd backend && npm install",
+        "prepare:frontend": "cd frontend && npm install",
+        "dev": "docker-compose up -d && concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:storybook\"",
+        "dev:backend": "cd backend && npm run start:dev",
+        "dev:frontend": "cd frontend && npm start",
+        "dev:storybook": "cd frontend && npm run storybook",
+        "build:backend": "cd backend && npm run build",
+        "build:frontend": "cd frontend && npm run build",
+        "test:backend": "cd backend && npm test",
+        "test:frontend": "cd frontend && npm test",
+        "docker:up": "docker-compose up -d",
+        "docker:down": "docker-compose down",
+        "docker:build": "docker-compose build",
+        "docker:logs": "docker-compose logs -f",
+        "create-s3-bucket": "TS_NODE_PROJECT=tsconfig.json node --loader ts-node/esm scripts/init-localstack.ts",
+        "clean:backend": "cd backend && rm -rf dist node_modules",
+        "clean:frontend": "cd frontend && rm -rf build node_modules",
+        "lint:backend": "cd backend && npm run lint",
+        "lint:frontend": "cd frontend && npm run lint",
+        "format:backend": "cd backend && npm run format",
+        "format:frontend": "cd frontend && npm run format"
+    },
+    "dependencies": {
+        "@faker-js/faker": "^9.3.0",
+        "class-transformer": "^0.5.1",
+        "class-validator": "^0.14.1",
+        "concurrently": "^8.2.2",
+        "cross-env": "^7.0.3",
+        "dotenv": "^16.4.7",
+        "mongoose": "^8.9.4",
+        "rimraf": "^5.0.5"
+    },
+    "devDependencies": {
+        "@types/node": "^20.17.12",
+        "eslint": "^8.56.0",
+        "husky": "^8.0.3",
+        "lint-staged": "^15.2.0",
+        "prettier": "^3.2.0",
+        "ts-node": "^10.9.2",
+        "tsconfig-paths": "^4.2.0",
+        "typescript": "^5.7.3"
+    },
+    "engines": {
+        "node": ">=18.0.0",
+        "npm": ">=8.0.0"
+    },
+    "husky": {
+        "hooks": {
+            "pre-commit": "lint-staged"
+        }
+    },
+    "lint-staged": {
+        "*.{js,jsx,ts,tsx}": [
+            "eslint --fix",
+            "prettier --write"
+        ]
+    }
+}
