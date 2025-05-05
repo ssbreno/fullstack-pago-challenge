@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CACHE_MANAGER } from '@nestjs/common';
-import { ImageService } from '../image.service';
 import { S3Service } from '../../../infrastructure/aws/s3/s3.service';
 import { NotFoundException } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ImageService } from '../application/services/image.service';
+import { describe, beforeEach, it, expect, jest } from '@jest/globals';
 
 describe('ImageService', () => {
   let service: ImageService;
@@ -10,14 +11,12 @@ describe('ImageService', () => {
   let cacheManager: any;
 
   beforeEach(async () => {
-    // Create mock cache manager
     const cacheMock = {
       get: jest.fn(),
       set: jest.fn(),
       del: jest.fn(),
     };
 
-    // Create mock S3 service
     const s3ServiceMock = {
       uploadFile: jest.fn(),
       getFile: jest.fn(),
@@ -55,29 +54,24 @@ describe('ImageService', () => {
         mimetype: 'image/jpeg',
       } as Express.Multer.File;
 
-      // Expected compressed buffer (mock)
       const expectedCompressedBuffer = Buffer.from('compressed image data');
 
-      // Mock the sharp compression (we're testing the method call, not sharp itself)
-      jest.spyOn<any, any>(service, 'compressImage').mockResolvedValue(expectedCompressedBuffer);
+      jest.spyOn(service as any, 'compressImage').mockResolvedValue(expectedCompressedBuffer);
 
       await service.uploadImage(mockFile);
-
-      // Verify S3 upload was called with correct params
       expect(s3Service.uploadFile).toHaveBeenCalledWith(
         expect.stringContaining('test-image.jpg'),
         expectedCompressedBuffer,
         'image/jpeg',
       );
 
-      // Verify cache was set
       expect(cacheManager.set).toHaveBeenCalledWith(
         expect.stringContaining('image_'),
         {
           buffer: expectedCompressedBuffer,
           contentType: 'image/jpeg',
         },
-        { ttl: 60 },
+        60
       );
     });
   });
@@ -90,18 +84,13 @@ describe('ImageService', () => {
         contentType: 'image/jpeg',
       };
 
-      // Setup cache hit
-      cacheManager.get.mockResolvedValue(cachedImage);
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(cachedImage);
 
       const result = await service.getImage(filename);
-
-      // Verify cache was checked
       expect(cacheManager.get).toHaveBeenCalledWith(`image_${filename}`);
       
-      // Verify S3 was not called
       expect(s3Service.getFile).not.toHaveBeenCalled();
       
-      // Verify correct data returned
       expect(result).toEqual(cachedImage);
     });
 
@@ -112,39 +101,31 @@ describe('ImageService', () => {
         contentType: 'image/jpeg',
       };
 
-      // Setup cache miss
-      cacheManager.get.mockResolvedValue(null);
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(null);
       
-      // Setup S3 response
-      s3Service.getFile.mockResolvedValue(s3Image);
+      jest.spyOn(s3Service, 'getFile').mockResolvedValue(s3Image);
 
       const result = await service.getImage(filename);
 
-      // Verify cache was checked
       expect(cacheManager.get).toHaveBeenCalledWith(`image_${filename}`);
       
-      // Verify S3 was called
       expect(s3Service.getFile).toHaveBeenCalledWith(filename);
       
-      // Verify cache was set with S3 result
       expect(cacheManager.set).toHaveBeenCalledWith(
         `image_${filename}`,
         s3Image,
-        { ttl: 60 },
+        60
       );
       
-      // Verify correct data returned
       expect(result).toEqual(s3Image);
     });
 
     it('should throw NotFoundException if image not found in cache or S3', async () => {
       const filename = 'nonexistent-image.jpg';
 
-      // Setup cache miss
-      cacheManager.get.mockResolvedValue(null);
-      
-      // Setup S3 error
-      s3Service.getFile.mockRejectedValue(new Error('Not found'));
+      jest.spyOn(cacheManager, 'get').mockResolvedValue(null);
+
+      jest.spyOn(s3Service, 'getFile').mockRejectedValue(new Error('Not found'));
 
       await expect(service.getImage(filename)).rejects.toThrow(NotFoundException);
     });
